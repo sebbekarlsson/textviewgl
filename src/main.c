@@ -156,16 +156,6 @@ static character_list_T get_characters(const char* text, const char* fontpath, i
     return list;
 }
 
-int compare( const void* a, const void* b)
-{
-     int int_a = * ( (int*) a );
-     int int_b = * ( (int*) b );
-
-     if ( int_a == int_b ) return 0;
-     else if ( int_a < int_b ) return -1;
-     else return 1;
-}
-
 unsigned int draw_mesh(unsigned int program, unsigned int texture, float x, float y, float w, float h, unsigned int VBO, unsigned int new_vbo)
 {
     if (new_vbo)
@@ -213,32 +203,6 @@ void draw_character_list(unsigned int program, unsigned int VAO, int font_size, 
     unsigned int VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    /**
-    * Calculate the width of the text
-    */
-    float full_text_width = 0;
-    int* lengths = (void*)0;
-    size_t lengths_size = 0;
-    for (int i = 0; i < character_list.size; i++)
-    {
-        character_T* character = character_list.items[i];
-
-        if (character->value == '\n')
-        {
-           lengths_size += 1;
-           if (lengths == (void*)0) { lengths = calloc(lengths_size, sizeof(int)); } else { lengths = realloc(lengths, lengths_size * sizeof(int)); }
-           lengths[lengths_size-1] = full_text_width;
-
-           full_text_width = 0;
-           continue;
-        }
-
-        full_text_width += character->bearing_left * scale;
-        full_text_width += (character->advance >> 6) * scale; 
-    }
-    qsort(lengths, lengths_size, sizeof(int), compare);
-    full_text_width = lengths[lengths_size-1];  // width of text
-    free(lengths);
 
     /**
      * Draw every character
@@ -251,14 +215,14 @@ void draw_character_list(unsigned int program, unsigned int VAO, int font_size, 
 
         if (character->value == '\n')
         {
-           y -= font_size;
-           x = 0;
-           continue;
+            y -= font_size;
+            x = 0;
+            continue;
         }
 
         unsigned int texture = character->texture;
 
-        GLfloat xpos = width/2 + (x + ((character->bearing_left * scale) - (full_text_width / 2)));
+        GLfloat xpos = x + character->bearing_left * scale;
         GLfloat ypos = y - (character->height - character->bearing_top) * scale;
 
         GLfloat w = character->width * scale;
@@ -267,9 +231,7 @@ void draw_character_list(unsigned int program, unsigned int VAO, int font_size, 
         draw_mesh(program, texture, xpos, ypos, w, h, VBO, NO);
 
         if (i == caret)
-        {
-            draw_mesh(program, caret_char->texture, xpos, ypos, w, h, 0, YES);
-        }
+            draw_mesh(program, caret_char->texture, xpos+(font_size*2), ypos, w, h, 0, YES);
 
         x += (character->advance >> 6) * scale;
     }
@@ -434,10 +396,10 @@ int main(int argc, char* argv[])
     /**
      * Main loop
      */
+    int timer = 0;
     while (!glfwWindowShouldClose(window))
     {
         glBindVertexArray(VAO);
-
 
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
@@ -454,11 +416,19 @@ int main(int argc, char* argv[])
         
         glUniformMatrix4fv(view_location, 1, GL_FALSE, (const GLfloat*) v);
         glUniformMatrix4fv(projection_location, 1, GL_FALSE, (const GLfloat*) p);
-
-        caret = caret < strlen(str) ? caret+1 : 0;
+        
+        if (timer < 10)
+        {
+            timer += 1;
+        }
+        else
+        {
+            caret = caret < strlen(str) ? caret+1 : 0;
+            timer = 0;
+        }
 
         glfwSwapBuffers(window);
-        glfwPollEvents(); 
+        glfwPollEvents();
     }
     
     free(str);
