@@ -15,5 +15,5 @@ git clone git://git.sv.nongnu.org/freetype/freetype2.git
 ## Build & Run
 > Run:
 ```bash
-make && ./a.out
+make && ./a.out <filename.txt>
 ```
